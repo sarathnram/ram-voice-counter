@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project RAM - Real-Time Voice Counter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="w-full bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div id="status-dot" class="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></div>
+                <h1 class="font-bold text-lg tracking-wide text-indigo-400">RAM Tracker</h1>
+            </div>
+            <span id="system-status" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700">Offline</span>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="max-w-md w-full mx-auto p-4 flex-1 flex flex-col space-y-6">
+
+        <!-- Live Control & Main Display Card -->
+        <div class="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl"></div>
+            
+            <p class="text-xs uppercase tracking-widest text-indigo-300 font-semibold mb-1">Today's Total Count</p>
+            <div id="daily-count-display" class="text-6xl font-black text-white tracking-tight my-2">0</div>
+            <p class="text-xs text-slate-400 mb-6">Target: <span class="text-indigo-400 font-bold">100,000</span> / day</p>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700/50 mb-6">
+                <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 to-cyan-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <!-- Record Toggle Button -->
+            <button id="toggle-record-btn" onclick="toggleListening()" class="w-full py-4 rounded-2xl font-bold flex items-center justify-center space-x-3 shadow-lg transition-all duration-200 bg-indigo-600 hover:bg-indigo-500 text-white active:scale-95">
+                <i id="mic-icon" class="fa-solid fa-microphone text-lg"></i>
+                <span id="btn-text">Start Listening</span>
+            </button>
+        </div>
+
+        <!-- Motivational Insight Banner -->
+        <div id="motivation-box" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-start space-x-3">
+            <div class="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl mt-0.5">
+                <i class="fa-solid fa-bolt-lightning text-lg"></i>
+            </div>
+            <div>
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Pace & Motivation</h3>
+                <p id="motivation-text" class="text-sm text-slate-300 mt-0.5">Press start when you are ready to conquer your 100k daily target!</p>
+            </div>
+        </div>
+
+        <!-- Time Window Analytics Grid -->
+        <div class="grid grid-cols-2 gap-3">
+            <!-- Last 1 Hour -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <p class="text-xs text-slate-400 flex items-center justify-between mb-1">
+                    <span>Last 1 Hour</span>
+                    <i class="fa-solid fa-clock-rotate-left text-slate-500"></i>
+                </p>
+                <div id="hour-count" class="text-2xl font-bold text-white">0</div>
+            </div>
+
+            <!-- Weekly Total -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <p class="text-xs text-slate-400 flex items-center justify-between mb-1">
+                    <span>This Week</span>
+                    <i class="fa-solid fa-calendar-week text-slate-500"></i>
+                </p>
+                <div id="weekly-count" class="text-2xl font-bold text-white">0</div>
+            </div>
+        </div>
+
+        <!-- Monthly Card -->
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+            <div>
+                <p class="text-xs text-slate-400 mb-0.5">This Month's Aggregate</p>
+                <div id="monthly-count" class="text-2xl font-bold text-white">0</div>
+            </div>
+            <div class="p-3 bg-slate-800 text-indigo-400 rounded-xl">
+                <i class="fa-solid fa-chart-line text-xl"></i>
+            </div>
+        </div>
+
+        <!-- Real-time Live Transcript Feed -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-32">
+            <span class="text-xs text-slate-500 uppercase tracking-wider mb-2 font-semibold">Live Transcript Feed</span>
+            <div id="transcript-feed" class="flex-1 overflow-y-auto text-xs text-slate-400 space-y-1 font-mono">
+                <span class="text-slate-600 italic">Listening logs will appear here...</span>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Action -->
+    <footer class="w-full bg-slate-900 border-t border-slate-800 py-3 px-4 text-center">
+        <button onclick="resetDataConfirmation()" class="text-xs text-rose-400 hover:text-rose-300 transition">Reset Today's Logs</button>
+    </footer>
+
+    <!-- Script Logic -->
+    <script>
+        // Data Structure & State
+        let isListening = false;
+        let recognition = null;
+        const TARGET_DAILY = 100000;
+
+        // Load logs from localStorage: array of timestamps [ { timestamp: number } ]
+        let logs = JSON.parse(localStorage.getItem('ram_voice_logs') || '[]');
+
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Web Speech API is not supported in this browser. Please use Chrome, Safari, or a mobile webview supporting speech recognition.");
+                return false;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscriptChunk = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscriptChunk += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                if (finalTranscriptChunk) {
+                    processTranscript(finalTranscriptChunk);
+                }
+
+                if (interimTranscript) {
+                    appendLogFeed(interimTranscript, true);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.warn("Speech recognition error:", event.error);
+                if (event.error === 'not-allowed') {
+                    stopListening();
+                    alert("Microphone permission denied. Please allow microphone access.");
+                }
+            };
+
+            recognition.onend = () => {
+                // Auto restart if user intended to keep listening (mobile browsers often terminate streams)
+                if (isListening) {
+                    try { recognition.start(); } catch (e) { console.error(e); }
+                }
+            };
+
+            return true;
+        }
+
+        function processTranscript(text) {
+            appendLogFeed(text, false);
+            
+            // Normalize text and count occurrences of the word "ram"
+            const cleaned = text.toLowerCase().replace(/[^\w\s]/gi, '');
+            const words = cleaned.split(/\s+/);
+            
+            let matches = 0;
+            words.forEach(word => {
+                if (word === 'ram') {
+                    matches++;
+                }
+            });
+
+            if (matches > 0) {
+                const now = Date.now();
+                for (let i = 0; i < matches; i++) {
+                    logs.push({ timestamp: now });
+                }
+                saveLogs();
+                updateUI();
+                triggerCelebrationEffect();
+            }
+        }
+
+        function saveLogs() {
+            localStorage.setItem('ram_voice_logs', JSON.stringify(logs));
+        }
+
+        function toggleListening() {
+            if (!isListening) {
+                if (!recognition && !initSpeechRecognition()) return;
+                try {
+                    recognition.start();
+                    isListening = true;
+                    updateControlState(true);
+                } catch(e) {
+                    console.error(e);
+                }
+            } else {
+                stopListening();
+            }
+        }
+
+        function stopListening() {
+            isListening = false;
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
+            updateControlState(false);
+        }
+
+        function updateControlState(active) {
+            const btn = document.getElementById('toggle-record-btn');
+            const dot = document.getElementById('status-dot');
+            const statusLabel = document.getElementById('system-status');
+            const btnText = document.getElementById('btn-text');
+            const micIcon = document.getElementById('mic-icon');
+
+            if (active) {
+                btn.className = "w-full py-4 rounded-2xl font-bold flex items-center justify-center space-x-3 shadow-lg transition-all duration-200 bg-rose-600 hover:bg-rose-500 text-white active:scale-95";
+                btnText.innerText = "Stop Listening";
+                micIcon.className = "fa-solid fa-stop text-lg";
+                dot.className = "w-3 h-3 rounded-full bg-emerald-500 animate-pulse";
+                statusLabel.innerText = "Listening Live";
+                statusLabel.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
+            } else {
+                btn.className = "w-full py-4 rounded-2xl font-bold flex items-center justify-center space-x-3 shadow-lg transition-all duration-200 bg-indigo-600 hover:bg-indigo-500 text-white active:scale-95";
+                btnText.innerText = "Start Listening";
+                micIcon.className = "fa-solid fa-microphone text-lg";
+                dot.className = "w-3 h-3 rounded-full bg-rose-500 animate-pulse";
+                statusLabel.innerText = "Offline";
+                statusLabel.className = "text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700";
+            }
+        }
+
+        function appendLogFeed(text, isInterim) {
+            const feed = document.getElementById('transcript-feed');
+            const div = document.createElement('div');
+            div.className = isInterim ? "text-slate-600 truncate" : "text-slate-300 truncate";
+            div.innerText = `> ${text}`;
+            feed.appendChild(div);
+            if (feed.children.length > 20) {
+                feed.removeChild(feed.children[0]);
+            }
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function updateUI() {
+            const now = Date.now();
+            const oneDayMs = 24 * 60 * 60 * 1000;
+            const oneHourMs = 60 * 60 * 1000;
+            const oneWeekMs = 7 * oneDayMs;
+            const oneMonthMs = 30 * oneDayMs;
+
+            // Filter logs by time windows
+            const todayStart = new Date().setHours(0,0,0,0);
+            
+            const dailyLogs = logs.filter(l => l.timestamp >= todayStart);
+            const hourLogs = logs.filter(l => l.timestamp >= (now - oneHourMs));
+            const weeklyLogs = logs.filter(l => l.timestamp >= (now - oneWeekMs));
+            const monthlyLogs = logs.filter(l => l.timestamp >= (now - oneMonthMs));
+
+            const dailyCount = dailyLogs.length;
+            const hourCount = hourLogs.length;
+            const weeklyCount = weeklyLogs.length;
+            const monthlyCount = monthlyLogs.length;
+
+            // Render numbers
+            document.getElementById('daily-count-display').innerText = dailyCount.toLocaleString();
+            document.getElementById('hour-count').innerText = hourCount.toLocaleString();
+            document.getElementById('weekly-count').innerText = weeklyCount.toLocaleString();
+            document.getElementById('monthly-count').innerText = monthlyCount.toLocaleString();
+
+            // Progress bar
+            const percent = Math.min(100, (dailyCount / TARGET_DAILY) * 100).toFixed(2);
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+
+            // Motivation generator
+            updateMotivation(dailyCount, hourCount);
+        }
+
+        function updateMotivation(dailyCount, hourCount) {
+            const motivationText = document.getElementById('motivation-text');
+            const remaining = TARGET_DAILY - dailyCount;
+
+            if (dailyCount === 0) {
+                motivationText.innerText = "The journey of 100,000 starts with a single utterance. Hit start!";
+                return;
+            }
+
+            if (dailyCount >= TARGET_DAILY) {
+                motivationText.innerText = "🏆 Incredible! You've achieved your 100k target for today! Keep pushing new heights!";
+                return;
+            }
+
+            let message = `You are at ${percentFormatted(dailyCount)}%. ${remaining.toLocaleString()} more to go today. `;
+            if (hourCount > 500) {
+                message += "🔥 Fantastic momentum in the last hour! Unstoppable pace!";
+            } else if (hourCount > 100) {
+                message += "⚡ Steady rhythm. Keep breathing and chanting!";
+            } else {
+                message += "💪 Pick up the tempo to stay on schedule!";
+            }
+            motivationText.innerText = message;
+        }
+
+        function percentFormatted(count) {
+            return ((count / TARGET_DAILY) * 100).toFixed(1);
+        }
+
+        function triggerCelebrationEffect() {
+            // Subtle visual feedback on count update
+            const display = document.getElementById('daily-count-display');
+            display.classList.add('scale-105', 'text-indigo-400');
+            setTimeout(() => {
+                display.classList.remove('scale-105', 'text-indigo-400');
+            }, 150);
+        }
+
+        function resetDataConfirmation() {
+            if (confirm("Are you sure you want to clear today's records?")) {
+                const todayStart = new Date().setHours(0,0,0,0);
+                logs = logs.filter(l => l.timestamp < todayStart);
+                saveLogs();
+                updateUI();
+            }
+        }
+
+        // Initial UI Render
+        updateUI();
+    </script>
+</body>
+</html>
