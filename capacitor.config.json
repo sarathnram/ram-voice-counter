@@ -1,0 +1,6 @@
+{
+  "appId": "com.ram.voicecounter",
+  "appName": "RAM Tracker",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
