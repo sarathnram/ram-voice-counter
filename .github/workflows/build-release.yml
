@@ -57,3 +57,4 @@ jobs:
         with:
           name: app-release-bundle
           path: android/app/build/outputs/bundle/release/app-release.aab
+# trigger build
