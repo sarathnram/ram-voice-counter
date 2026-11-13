@@ -162,31 +162,30 @@
             return true;
         }
 
-        function processTranscript(text) {
-            appendLogFeed(text, false);
-            
-            // Normalize text and count occurrences of the word "ram"
-            const cleaned = text.toLowerCase().replace(/[^\w\s]/gi, '');
-            const words = cleaned.split(/\s+/);
-            
-            let matches = 0;
-            words.forEach(word => {
-                if (word === 'ram') {
-                    matches++;
-                }
-            });
-
-            if (matches > 0) {
-                const now = Date.now();
-                for (let i = 0; i < matches; i++) {
-                    logs.push({ timestamp: now });
-                }
-                saveLogs();
-                updateUI();
-                triggerCelebrationEffect();
-            }
+    function processTranscript(text) {
+    appendLogFeed(text, false);
+    
+    // Normalize text: lowercase and remove punctuation
+    const cleaned = text.toLowerCase().replace(/[^\w\s]/gi, '');
+    const words = cleaned.split(/\s+/);
+    
+    let matches = 0;
+    words.forEach(word => {
+        if (word === 'ram') {
+            matches++;
         }
+    });
 
+    if (matches > 0) {
+        const now = Date.now();
+        for (let i = 0; i < matches; i++) {
+            logs.push({ timestamp: now });
+        }
+        saveLogs();
+        updateUI();
+        triggerCelebrationEffect();
+    }
+}
         function saveLogs() {
             localStorage.setItem('ram_voice_logs', JSON.stringify(logs));
         }
