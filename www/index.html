@@ -107,6 +107,9 @@
         let isListening = false;
         let recognition = null;
         const TARGET_DAILY = 100000;
+        // Add a global variable at the top of your script section to track the last count timestamp
+        let lastMatchTimestamp = 0;
+        const DEBOUNCE_MS = 300; // Ignore duplicate matches within 300ms
 
         // Load logs from localStorage: array of timestamps [ { timestamp: number } ]
         let logs = JSON.parse(localStorage.getItem('ram_voice_logs') || '[]');
@@ -162,7 +165,7 @@
             return true;
         }
 
-    function processTranscript(text) {
+   function processTranscript(text) {
     appendLogFeed(text, false);
     
     // Normalize text: lowercase and remove punctuation
@@ -170,14 +173,19 @@
     const words = cleaned.split(/\s+/);
     
     let matches = 0;
+    const now = Date.now();
+
     words.forEach(word => {
         if (word === 'ram') {
-            matches++;
+            // Check if this match is too close to the previous one (overlapping result)
+            if (now - lastMatchTimestamp > DEBOUNCE_MS) {
+                matches++;
+                lastMatchTimestamp = now;
+            }
         }
     });
 
     if (matches > 0) {
-        const now = Date.now();
         for (let i = 0; i < matches; i++) {
             logs.push({ timestamp: now });
         }
